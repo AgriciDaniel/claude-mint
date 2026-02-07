@@ -4,6 +4,17 @@
 
 set -e
 
+# Cleanup trap for failed installs
+INSTALL_COMPLETE=false
+cleanup() {
+    if [ "$INSTALL_COMPLETE" = false ]; then
+        echo ""
+        echo -e "\033[0;31m✗ Installation failed. Partial install may exist at $HOME/.claude/\033[0m"
+        echo "  Re-run: bash install.sh"
+    fi
+}
+trap cleanup EXIT
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -120,11 +131,21 @@ install_claude_code() {
 create_directory_structure() {
     print_status "Creating directory structure..."
 
-    mkdir -p ~/.claude/skills/mint
-    mkdir -p ~/.claude/directives
-    mkdir -p ~/.claude/execution/audit
-    mkdir -p ~/.claude/execution/actions
-    mkdir -p ~/.claude/execution/utils
+    # Backup existing installation if present
+    if [ -d "$HOME/.claude/skills/mint" ]; then
+        local backup_dir="$HOME/.claude/.backup/$(date +%Y%m%d_%H%M%S)"
+        mkdir -p "$backup_dir"
+        cp -r "$HOME/.claude/skills/mint" "$backup_dir/" 2>/dev/null || true
+        cp -r "$HOME/.claude/directives" "$backup_dir/" 2>/dev/null || true
+        cp -r "$HOME/.claude/execution" "$backup_dir/" 2>/dev/null || true
+        print_status "Existing files backed up to $backup_dir"
+    fi
+
+    mkdir -p "$HOME/.claude/skills/mint"
+    mkdir -p "$HOME/.claude/directives"
+    mkdir -p "$HOME/.claude/execution/audit"
+    mkdir -p "$HOME/.claude/execution/actions"
+    mkdir -p "$HOME/.claude/execution/utils"
 }
 
 install_skill_and_scripts() {
@@ -136,18 +157,18 @@ install_skill_and_scripts() {
         print_status "Installing from local repository..."
 
         # Copy skill
-        cp "$SCRIPT_DIR/skills/mint/SKILL.md" ~/.claude/skills/mint/
+        cp "$SCRIPT_DIR/skills/mint/SKILL.md" $HOME/.claude/skills/mint/
 
         # Copy directives
-        cp "$SCRIPT_DIR/directives/"*.md ~/.claude/directives/ 2>/dev/null || true
+        cp "$SCRIPT_DIR/directives/"*.md $HOME/.claude/directives/ 2>/dev/null || true
 
         # Copy execution scripts
-        cp "$SCRIPT_DIR/execution/audit/"*.sh ~/.claude/execution/audit/ 2>/dev/null || true
-        cp "$SCRIPT_DIR/execution/utils/"*.sh ~/.claude/execution/utils/ 2>/dev/null || true
+        cp "$SCRIPT_DIR/execution/audit/"*.sh $HOME/.claude/execution/audit/ 2>/dev/null || true
+        cp "$SCRIPT_DIR/execution/utils/"*.sh $HOME/.claude/execution/utils/ 2>/dev/null || true
 
         # Make scripts executable
-        chmod +x ~/.claude/execution/audit/*.sh 2>/dev/null || true
-        chmod +x ~/.claude/execution/utils/*.sh 2>/dev/null || true
+        chmod +x $HOME/.claude/execution/audit/*.sh 2>/dev/null || true
+        chmod +x $HOME/.claude/execution/utils/*.sh 2>/dev/null || true
     else
         # Running from curl - download from GitHub
         print_status "Downloading from GitHub..."
@@ -155,21 +176,22 @@ install_skill_and_scripts() {
         local REPO_URL="https://raw.githubusercontent.com/AgriciDaniel/claude-mint/main"
 
         # Download skill
-        curl -fsSL "$REPO_URL/skills/mint/SKILL.md" -o ~/.claude/skills/mint/SKILL.md
+        curl -fsSL "$REPO_URL/skills/mint/SKILL.md" -o $HOME/.claude/skills/mint/SKILL.md
 
         # Download directives
+        # NOTE: When adding new directives to the repo, also add them to this list
         for directive in security-hardening system-update cinnamon-customization gpu-management backup-recovery performance-tuning troubleshooting development-setup; do
-            curl -fsSL "$REPO_URL/directives/${directive}.md" -o ~/.claude/directives/${directive}.md 2>/dev/null || true
+            curl -fsSL "$REPO_URL/directives/${directive}.md" -o $HOME/.claude/directives/${directive}.md 2>/dev/null || true
         done
 
         # Download execution scripts
         for script in hardware security cinnamon software; do
-            curl -fsSL "$REPO_URL/execution/audit/${script}.sh" -o ~/.claude/execution/audit/${script}.sh
-            chmod +x ~/.claude/execution/audit/${script}.sh
+            curl -fsSL "$REPO_URL/execution/audit/${script}.sh" -o $HOME/.claude/execution/audit/${script}.sh
+            chmod +x $HOME/.claude/execution/audit/${script}.sh
         done
 
-        curl -fsSL "$REPO_URL/execution/utils/generate-profile.sh" -o ~/.claude/execution/utils/generate-profile.sh
-        chmod +x ~/.claude/execution/utils/generate-profile.sh
+        curl -fsSL "$REPO_URL/execution/utils/generate-profile.sh" -o $HOME/.claude/execution/utils/generate-profile.sh
+        chmod +x $HOME/.claude/execution/utils/generate-profile.sh
     fi
 
     print_status "Installed /mint skill and scripts"
@@ -183,10 +205,10 @@ run_system_audit() {
     print_status "Running system audit..."
 
     # Source audit scripts
-    source ~/.claude/execution/audit/hardware.sh 2>/dev/null || true
-    source ~/.claude/execution/audit/security.sh 2>/dev/null || true
-    source ~/.claude/execution/audit/cinnamon.sh 2>/dev/null || true
-    source ~/.claude/execution/audit/software.sh 2>/dev/null || true
+    source $HOME/.claude/execution/audit/hardware.sh 2>/dev/null || true
+    source $HOME/.claude/execution/audit/security.sh 2>/dev/null || true
+    source $HOME/.claude/execution/audit/cinnamon.sh 2>/dev/null || true
+    source $HOME/.claude/execution/audit/software.sh 2>/dev/null || true
 
     echo ""
     echo -e "${CYAN}╔═══════════════════════════════════════════════════════════════╗${NC}"
@@ -212,16 +234,16 @@ generate_profile() {
     print_status "Generating system profile..."
 
     # Backup existing profile
-    if [ -f ~/.claude/CLAUDE.md ]; then
+    if [ -f $HOME/.claude/CLAUDE.md ]; then
         local backup="$HOME/.claude/CLAUDE.md.backup.$(date +%Y%m%d_%H%M%S)"
-        cp ~/.claude/CLAUDE.md "$backup"
+        cp $HOME/.claude/CLAUDE.md "$backup"
         print_status "Backed up existing profile to $backup"
     fi
 
     # Generate new profile
-    if [ -x ~/.claude/execution/utils/generate-profile.sh ]; then
-        ~/.claude/execution/utils/generate-profile.sh > ~/.claude/CLAUDE.md
-        print_status "Generated ~/.claude/CLAUDE.md"
+    if [ -x $HOME/.claude/execution/utils/generate-profile.sh ]; then
+        $HOME/.claude/execution/utils/generate-profile.sh > $HOME/.claude/CLAUDE.md
+        print_status "Generated $HOME/.claude/CLAUDE.md"
     else
         print_warning "Profile generator not found, skipping profile generation"
     fi
@@ -276,10 +298,10 @@ print_summary() {
     echo -e "${GREEN}╔═══════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║                 INSTALLATION COMPLETE                          ║${NC}"
     echo -e "${GREEN}╠═══════════════════════════════════════════════════════════════╣${NC}"
-    echo -e "${GREEN}║${NC} ✓ Installed /mint skill to ~/.claude/skills/mint/"
-    echo -e "${GREEN}║${NC} ✓ Installed directives to ~/.claude/directives/"
-    echo -e "${GREEN}║${NC} ✓ Installed scripts to ~/.claude/execution/"
-    echo -e "${GREEN}║${NC} ✓ Generated system profile: ~/.claude/CLAUDE.md"
+    echo -e "${GREEN}║${NC} ✓ Installed /mint skill to $HOME/.claude/skills/mint/"
+    echo -e "${GREEN}║${NC} ✓ Installed directives to $HOME/.claude/directives/"
+    echo -e "${GREEN}║${NC} ✓ Installed scripts to $HOME/.claude/execution/"
+    echo -e "${GREEN}║${NC} ✓ Generated system profile: $HOME/.claude/CLAUDE.md"
     echo -e "${GREEN}╠═══════════════════════════════════════════════════════════════╣${NC}"
     echo -e "${GREEN}║${NC} Use ${CYAN}/mint${NC} in Claude Code to get started!"
     echo -e "${GREEN}║${NC}"
@@ -317,6 +339,9 @@ main() {
 
     # Optional hardening
     offer_hardening
+
+    # Mark install complete (disables cleanup trap error message)
+    INSTALL_COMPLETE=true
 
     # Summary
     print_summary
