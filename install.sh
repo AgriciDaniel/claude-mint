@@ -1,6 +1,6 @@
 #!/bin/bash
 # Mint System Assistant Installer
-# One-liner: curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/mint-claude/main/install.sh | bash
+# One-liner: curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/claude-mint/main/install.sh | bash
 
 set -e
 
@@ -107,10 +107,8 @@ install_claude_code() {
     print_status "Installing Claude Code via official installer..."
     curl -fsSL https://claude.ai/install.sh | bash
 
-    # Source shell config to get claude in PATH
-    if [ -f "$HOME/.bashrc" ]; then
-        source "$HOME/.bashrc" 2>/dev/null || true
-    fi
+    # Add common Claude Code paths to current session
+    export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"
 
     if command -v claude &>/dev/null; then
         print_status "Claude Code installed"
@@ -154,7 +152,7 @@ install_skill_and_scripts() {
         # Running from curl - download from GitHub
         print_status "Downloading from GitHub..."
 
-        local REPO_URL="https://raw.githubusercontent.com/AgriciDaniel/mint-claude/main"
+        local REPO_URL="https://raw.githubusercontent.com/AgriciDaniel/claude-mint/main"
 
         # Download skill
         curl -fsSL "$REPO_URL/skills/mint/SKILL.md" -o ~/.claude/skills/mint/SKILL.md
@@ -240,13 +238,19 @@ offer_hardening() {
         return 0
     fi
 
+    # Skip interactive prompts when running under curl|bash (stdin is the pipe)
+    if [ ! -t 0 ]; then
+        print_warning "Security score is ${AUDIT_SECURITY_SCORE}/100. Run install.sh directly for hardening options."
+        return 0
+    fi
+
     echo ""
     echo -e "${YELLOW}Your security score is ${AUDIT_SECURITY_SCORE}/100${NC}"
     echo "Would you like to enable basic security hardening?"
     echo "  - Enable UFW firewall"
     echo "  - Enable automatic security updates"
     echo ""
-    read -p "Enable hardening? (y/N) " -n 1 -r
+    read -p "Enable hardening? (y/N) " -n 1 -r </dev/tty
     echo ""
 
     if [[ $REPLY =~ ^[Yy]$ ]]; then

@@ -15,13 +15,13 @@ Adapted from [stellar-claude](https://github.com/AgriciDaniel/stellar-claude) (P
 
 ### One-Liner Install
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/mint-claude/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/claude-mint/main/install.sh | bash
 ```
 
 ### Or Clone and Run Locally
 ```bash
-git clone https://github.com/AgriciDaniel/mint-claude.git
-cd mint-claude
+git clone https://github.com/AgriciDaniel/claude-mint.git
+cd claude-mint
 chmod +x install.sh && ./install.sh
 ```
 
@@ -117,7 +117,7 @@ This assistant knows about:
 
 ## Differences from stellar-claude
 
-| Feature | stellar-claude (Pop!_OS) | mint-claude (Linux Mint) |
+| Feature | stellar-claude (Pop!_OS) | claude-mint (Linux Mint) |
 |---------|--------------------------|--------------------------|
 | Desktop | COSMIC (Wayland) | Cinnamon (X11) |
 | Config | RON files | gsettings/dconf |

@@ -37,7 +37,7 @@ verify_mint() {
     if [[ "$ID" != "linuxmint" ]]; then
         print_warning "This script is optimized for Linux Mint."
         print_warning "Detected: $PRETTY_NAME"
-        read -p "Continue anyway? (y/N) " -n 1 -r
+        read -p "Continue anyway? (y/N) " -n 1 -r </dev/tty
         echo ""
         [[ ! $REPLY =~ ^[Yy]$ ]] && exit 1
     else
@@ -118,7 +118,7 @@ install_claude_code() {
         return 0
     fi
     curl -fsSL https://claude.ai/install.sh | bash
-    [ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc" 2>/dev/null || true
+    export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"
     if command -v claude &>/dev/null; then
         print_status "Claude Code installed"
     else
@@ -139,7 +139,7 @@ print_summary() {
     command -v claude &>/dev/null && echo -e "${GREEN}║${NC} ✓ Claude Code: $(claude --version 2>/dev/null || echo 'installed')" || echo -e "${GREEN}║${NC} ✗ Claude Code: Not installed"
     echo -e "${GREEN}╠═══════════════════════════════════════════════════════════════╣${NC}"
     echo -e "${GREEN}║${NC} Next: Run the Mint System Assistant installer:"
-    echo -e "${GREEN}║${NC}   ${CYAN}cd ~/mint-claude && chmod +x install.sh && ./install.sh${NC}"
+    echo -e "${GREEN}║${NC}   ${CYAN}cd ~/claude-mint && chmod +x install.sh && ./install.sh${NC}"
     echo -e "${GREEN}╚═══════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 }
