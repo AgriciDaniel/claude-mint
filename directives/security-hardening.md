@@ -107,9 +107,10 @@ Apply: `sudo sysctl --system`
 
 **If using disk encryption:**
 ```bash
-lsblk -f | grep crypto_LUKS
-sudo cryptsetup luksDump /dev/nvme0n1pX
-sudo cryptsetup luksHeaderBackup /dev/nvme0n1pX --header-backup-file ~/luks-header-backup.img
+LUKS_DEV=$(lsblk -f -o PATH,FSTYPE | grep crypto_LUKS | awk '{print $1}' | head -1)
+echo "LUKS device: $LUKS_DEV"
+sudo cryptsetup luksDump "$LUKS_DEV"
+sudo cryptsetup luksHeaderBackup "$LUKS_DEV" --header-backup-file ~/luks-header-backup.img
 ```
 
 ### 4c. Secure Boot Considerations

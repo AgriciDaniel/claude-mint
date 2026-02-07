@@ -107,11 +107,50 @@ This assistant knows about:
 
 ---
 
+## Hardware Support
+
+| GPU Config | Status | Notes |
+|------------|--------|-------|
+| NVIDIA + AMD iGPU (hybrid) | Tested | PRIME on-demand, nvidia-smi, full support |
+| NVIDIA + Intel iGPU (hybrid) | Supported | PRIME switching, i915 detection |
+| NVIDIA only (desktop) | Supported | No PRIME, direct NVIDIA management |
+| AMD only (discrete or iGPU) | Supported | amdgpu driver, glxinfo, sensors |
+| Intel only (iGPU) | Supported | i915 driver, basic monitoring |
+
+---
+
 ## Prerequisites
 
 - [Linux Mint](https://linuxmint.com/) 21.x or 22.x (Cinnamon edition)
 - [Node.js](https://nodejs.org/) (installer can set this up)
 - [Claude Code](https://claude.ai/code) (installer can set this up)
+
+---
+
+## After System Changes
+
+When your hardware or system changes (new GPU, kernel update, driver change):
+
+```bash
+# Regenerate your system profile
+~/.claude/execution/utils/generate-profile.sh > ~/.claude/CLAUDE.md
+```
+
+This updates `CLAUDE.md` with current hardware specs, security score, and software versions.
+
+---
+
+## Updating
+
+After pulling new changes from the repository:
+
+```bash
+cd ~/claude-mint  # or wherever you cloned it
+git pull
+./install.sh      # re-deploys updated files to ~/.claude/
+```
+
+The installer backs up existing files before overwriting them.
 
 ---
 

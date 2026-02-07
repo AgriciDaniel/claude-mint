@@ -125,18 +125,20 @@ Linux Mint does **NOT** have a dedicated recovery partition like Pop!_OS. Instea
    # Find your partitions
    lsblk -f
 
+   # IMPORTANT: Replace /dev/sdXN below with your actual partitions from lsblk
+
    # If encrypted (LUKS):
-   sudo cryptsetup luksOpen /dev/nvme0n1pX cryptdata
+   sudo cryptsetup luksOpen /dev/sdXN cryptdata
    sudo mount /dev/mapper/cryptdata /mnt
    # Or if LVM:
    sudo lvchange -ay /dev/vgname/root
    sudo mount /dev/vgname/root /mnt
 
    # If NOT encrypted:
-   sudo mount /dev/nvme0n1pX /mnt
+   sudo mount /dev/sdXN /mnt
 
    # Mount EFI partition (UEFI systems)
-   sudo mount /dev/nvme0n1p1 /mnt/boot/efi
+   sudo mount /dev/sdX1 /mnt/boot/efi
    ```
 
 4. Chroot into system:
@@ -179,7 +181,8 @@ If GRUB is broken:
 
 ```bash
 # From live USB, after mounting and chroot:
-grub-install /dev/nvme0n1    # Or /dev/sda
+# Replace /dev/sdX with your boot disk from lsblk
+grub-install /dev/sdX
 update-grub
 
 # Or use Boot Repair tool:
@@ -197,17 +200,18 @@ boot-repair
 # Find your LUKS partition first — adjust device path as needed
 lsblk -f | grep crypto_LUKS
 
-# View LUKS info and key slots
-sudo cryptsetup luksDump /dev/nvme0n1pX
+# Detect LUKS device and view info
+LUKS_DEV=$(lsblk -f -o PATH,FSTYPE | grep crypto_LUKS | awk '{print $1}' | head -1)
+sudo cryptsetup luksDump "$LUKS_DEV"
 
 # BACKUP LUKS HEADER (save to external drive!)
-sudo cryptsetup luksHeaderBackup /dev/nvme0n1pX --header-backup-file ~/luks-header-backup.img
+sudo cryptsetup luksHeaderBackup "$LUKS_DEV" --header-backup-file ~/luks-header-backup.img
 
 # Add additional passphrase (optional, slot 1)
-sudo cryptsetup luksAddKey /dev/nvme0n1pX
+sudo cryptsetup luksAddKey "$LUKS_DEV"
 
 # Change existing passphrase
-sudo cryptsetup luksChangeKey /dev/nvme0n1pX
+sudo cryptsetup luksChangeKey "$LUKS_DEV"
 ```
 
 **Store LUKS header backup SECURELY offline** — it can decrypt your drive!

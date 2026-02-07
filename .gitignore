@@ -23,3 +23,6 @@ node_modules/
 # Environment / secrets
 .env
 .env.*
+
+# Generated system profile (machine-specific, created by generate-profile.sh)
+CLAUDE.md
