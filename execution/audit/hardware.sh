@@ -79,7 +79,7 @@ detect_gpu() {
     # Discover all GPUs via lspci
     local gpu_pci=$(lspci 2>/dev/null | grep -iE "VGA|3D|Display")
     local nvidia_gpu=$(echo "$gpu_pci" | grep -i nvidia | head -1 | sed 's/.*: //')
-    local amd_gpu=$(echo "$gpu_pci" | grep -iE "AMD|ATI" | head -1 | sed 's/.*: //')
+    local amd_gpu=$(echo "$gpu_pci" | grep -iwE "AMD|ATI" | head -1 | sed 's/.*: //')
     local intel_gpu=$(echo "$gpu_pci" | grep -i intel | head -1 | sed 's/.*: //')
 
     # Detect NVIDIA details if present
@@ -123,7 +123,7 @@ detect_gpu() {
         AUDIT_GPU_CONFIG="hybrid-amd-nvidia"
         AUDIT_GPU_SECONDARY=$(echo "$amd_gpu" | sed 's/\[.*\]//' | xargs)
         # Detect secondary driver dynamically
-        local amd_pci_slot=$(echo "$gpu_pci" | grep -iE "AMD|ATI" | head -1 | awk '{print $1}')
+        local amd_pci_slot=$(echo "$gpu_pci" | grep -iwE "AMD|ATI" | head -1 | awk '{print $1}')
         AUDIT_GPU_SECONDARY_DRIVER=$(lspci -k -s "$amd_pci_slot" 2>/dev/null | grep "Kernel driver" | awk '{print $NF}')
         [ -z "$AUDIT_GPU_SECONDARY_DRIVER" ] && AUDIT_GPU_SECONDARY_DRIVER="amdgpu"
     elif [ "$has_nvidia" = true ] && [ -n "$intel_gpu" ]; then
@@ -137,7 +137,7 @@ detect_gpu() {
     elif [ -n "$amd_gpu" ]; then
         AUDIT_GPU_CONFIG="amd-only"
         AUDIT_GPU_MODEL=$(echo "$amd_gpu" | sed 's/\[.*\]//' | xargs)
-        local amd_pci_slot=$(echo "$gpu_pci" | grep -iE "AMD|ATI" | head -1 | awk '{print $1}')
+        local amd_pci_slot=$(echo "$gpu_pci" | grep -iwE "AMD|ATI" | head -1 | awk '{print $1}')
         AUDIT_GPU_DRIVER=$(lspci -k -s "$amd_pci_slot" 2>/dev/null | grep "Kernel driver" | awk '{print $NF}')
         [ -z "$AUDIT_GPU_DRIVER" ] && AUDIT_GPU_DRIVER="amdgpu"
         AUDIT_GPU_DRIVER_TYPE="open source"

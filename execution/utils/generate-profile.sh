@@ -46,6 +46,15 @@ generate_os_section() {
     local groups=$(groups | tr ' ' ', ')
     local shell=$(basename "$SHELL")
 
+    # Detect bootloader dynamically
+    if [ -f /boot/efi/EFI/systemd/systemd-bootx64.efi ] 2>/dev/null; then
+        DETECTED_BOOTLOADER="systemd-boot"
+    elif [ -f /boot/grub/grub.cfg ] 2>/dev/null; then
+        DETECTED_BOOTLOADER="GRUB2"
+    else
+        DETECTED_BOOTLOADER="Unknown"
+    fi
+
     cat << EOF
 ## Operating System
 
@@ -63,7 +72,7 @@ generate_os_section() {
 | **User ID** | ${uid} |
 | **Groups** | ${groups} |
 | **Default Shell** | ${SHELL} |
-| **Bootloader** | $(if [ -f /boot/efi/EFI/systemd/systemd-bootx64.efi ] 2>/dev/null; then echo "systemd-boot"; elif [ -f /boot/grub/grub.cfg ] 2>/dev/null; then echo "GRUB2"; else echo "Unknown"; fi) |
+| **Bootloader** | ${DETECTED_BOOTLOADER} |
 
 ---
 
@@ -490,7 +499,11 @@ EOF
     n=$((n+1)); echo "${n}. **Use apt or mintupdate-cli** for package management (Debian-based)"
     n=$((n+1)); echo "${n}. **No snap packages** - Linux Mint blocks snap by default; prefer Flatpak for sandboxed apps"
     n=$((n+1)); echo "${n}. **powerprofilesctl** manages power profiles (power-profiles-daemon)"
-    n=$((n+1)); echo "${n}. **GRUB2** is the bootloader - configure via \`/etc/default/grub\` + \`sudo update-grub\`"
+    if [ "$DETECTED_BOOTLOADER" = "GRUB2" ]; then
+        n=$((n+1)); echo "${n}. **GRUB2** is the bootloader - configure via \`/etc/default/grub\` + \`sudo update-grub\`"
+    elif [ "$DETECTED_BOOTLOADER" = "systemd-boot" ]; then
+        n=$((n+1)); echo "${n}. **systemd-boot** is the bootloader - configure via \`bootctl\` and loader entries"
+    fi
     n=$((n+1)); echo "${n}. **Timeshift** is the primary backup tool (pre-installed, first-class on Mint)"
 
     # GPU-specific notes
