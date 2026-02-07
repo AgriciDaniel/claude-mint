@@ -1,0 +1,25 @@
+# Editor artifacts
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+.directory
+
+# Logs
+*.log
+
+# Node
+node_modules/
+
+# Temp files
+*.tmp
+*.bak
+
+# Environment / secrets
+.env
+.env.*
