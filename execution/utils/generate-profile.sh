@@ -62,8 +62,8 @@ generate_os_section() {
 | **Username** | ${username} |
 | **User ID** | ${uid} |
 | **Groups** | ${groups} |
-| **Default Shell** | /bin/${shell} |
-| **Bootloader** | GRUB2 |
+| **Default Shell** | ${SHELL} |
+| **Bootloader** | $(if [ -f /boot/efi/EFI/systemd/systemd-bootx64.efi ] 2>/dev/null; then echo "systemd-boot"; elif [ -f /boot/grub/grub.cfg ] 2>/dev/null; then echo "GRUB2"; else echo "Unknown"; fi) |
 
 ---
 
@@ -131,7 +131,7 @@ EOF
 | Property | Value |
 |----------|-------|
 | **Model** | ${AUDIT_GPU_SECONDARY} |
-| **Driver** | amdgpu (open source) |
+| **Driver** | ${AUDIT_GPU_SECONDARY_DRIVER:-unknown} (open source) |
 EOF
     fi
 

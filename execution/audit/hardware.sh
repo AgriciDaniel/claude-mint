@@ -71,10 +71,21 @@ detect_gpu() {
     AUDIT_GPU_CUDA=""
     AUDIT_GPU_ARCH=""
     AUDIT_GPU_SECONDARY=""
+    AUDIT_GPU_SECONDARY_DRIVER=""
     AUDIT_GPU_TEMP=""
+    AUDIT_GPU_DRIVER_TYPE=""
+    AUDIT_GPU_CONFIG=""
 
-    # Check for NVIDIA GPU
-    if command -v nvidia-smi &>/dev/null; then
+    # Discover all GPUs via lspci
+    local gpu_pci=$(lspci 2>/dev/null | grep -iE "VGA|3D|Display")
+    local nvidia_gpu=$(echo "$gpu_pci" | grep -i nvidia | head -1 | sed 's/.*: //')
+    local amd_gpu=$(echo "$gpu_pci" | grep -iE "AMD|ATI" | head -1 | sed 's/.*: //')
+    local intel_gpu=$(echo "$gpu_pci" | grep -i intel | head -1 | sed 's/.*: //')
+
+    # Detect NVIDIA details if present
+    local has_nvidia=false
+    if [ -n "$nvidia_gpu" ] && command -v nvidia-smi &>/dev/null; then
+        has_nvidia=true
         AUDIT_GPU_MODEL=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)
         AUDIT_GPU_VRAM=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader 2>/dev/null | head -1)
         AUDIT_GPU_DRIVER=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1)
@@ -100,30 +111,63 @@ detect_gpu() {
         else
             AUDIT_GPU_DRIVER_TYPE="proprietary"
         fi
+    elif [ -n "$nvidia_gpu" ]; then
+        # NVIDIA GPU present but driver not loaded
+        AUDIT_GPU_MODEL="$nvidia_gpu"
+        AUDIT_GPU_DRIVER="not loaded"
+        has_nvidia=true
     fi
 
-    # Check for AMD GPU (secondary/iGPU)
-    local gpu_pci=$(lspci 2>/dev/null | grep -iE "VGA|3D|Display")
-    if echo "$gpu_pci" | grep -qiE "AMD.*Radeon|ATI.*Radeon"; then
-        local amd_line=$(echo "$gpu_pci" | grep -iE "AMD.*Radeon|ATI.*Radeon" | head -1)
-        local amd_model=$(echo "$amd_line" | sed 's/.*: //' | sed 's/\[.*\]//' | xargs)
+    # Determine GPU configuration and assign primary/secondary
+    if [ "$has_nvidia" = true ] && [ -n "$amd_gpu" ]; then
+        AUDIT_GPU_CONFIG="hybrid-amd-nvidia"
+        AUDIT_GPU_SECONDARY=$(echo "$amd_gpu" | sed 's/\[.*\]//' | xargs)
+        # Detect secondary driver dynamically
+        local amd_pci_slot=$(echo "$gpu_pci" | grep -iE "AMD|ATI" | head -1 | awk '{print $1}')
+        AUDIT_GPU_SECONDARY_DRIVER=$(lspci -k -s "$amd_pci_slot" 2>/dev/null | grep "Kernel driver" | awk '{print $NF}')
+        [ -z "$AUDIT_GPU_SECONDARY_DRIVER" ] && AUDIT_GPU_SECONDARY_DRIVER="amdgpu"
+    elif [ "$has_nvidia" = true ] && [ -n "$intel_gpu" ]; then
+        AUDIT_GPU_CONFIG="hybrid-intel-nvidia"
+        AUDIT_GPU_SECONDARY=$(echo "$intel_gpu" | sed 's/\[.*\]//' | xargs)
+        local intel_pci_slot=$(echo "$gpu_pci" | grep -i intel | head -1 | awk '{print $1}')
+        AUDIT_GPU_SECONDARY_DRIVER=$(lspci -k -s "$intel_pci_slot" 2>/dev/null | grep "Kernel driver" | awk '{print $NF}')
+        [ -z "$AUDIT_GPU_SECONDARY_DRIVER" ] && AUDIT_GPU_SECONDARY_DRIVER="i915"
+    elif [ "$has_nvidia" = true ]; then
+        AUDIT_GPU_CONFIG="nvidia-only"
+    elif [ -n "$amd_gpu" ]; then
+        AUDIT_GPU_CONFIG="amd-only"
+        AUDIT_GPU_MODEL=$(echo "$amd_gpu" | sed 's/\[.*\]//' | xargs)
+        local amd_pci_slot=$(echo "$gpu_pci" | grep -iE "AMD|ATI" | head -1 | awk '{print $1}')
+        AUDIT_GPU_DRIVER=$(lspci -k -s "$amd_pci_slot" 2>/dev/null | grep "Kernel driver" | awk '{print $NF}')
+        [ -z "$AUDIT_GPU_DRIVER" ] && AUDIT_GPU_DRIVER="amdgpu"
+        AUDIT_GPU_DRIVER_TYPE="open source"
+    elif [ -n "$intel_gpu" ]; then
+        AUDIT_GPU_CONFIG="intel-only"
+        AUDIT_GPU_MODEL=$(echo "$intel_gpu" | sed 's/\[.*\]//' | xargs)
+        local intel_pci_slot=$(echo "$gpu_pci" | grep -i intel | head -1 | awk '{print $1}')
+        AUDIT_GPU_DRIVER=$(lspci -k -s "$intel_pci_slot" 2>/dev/null | grep "Kernel driver" | awk '{print $NF}')
+        [ -z "$AUDIT_GPU_DRIVER" ] && AUDIT_GPU_DRIVER="i915"
+        AUDIT_GPU_DRIVER_TYPE="open source"
+    else
+        AUDIT_GPU_CONFIG="unknown"
+    fi
 
-        # Check if it's an unnamed device (new hardware)
-        if echo "$amd_model" | grep -qE "Device [0-9a-f]+" && ! echo "$amd_model" | grep -qiE "Radeon|RX"; then
-            AUDIT_GPU_SECONDARY="AMD iGPU (amdgpu)"
-        else
-            AUDIT_GPU_SECONDARY="$amd_model"
+    # Handle unnamed AMD devices (new hardware with no lspci name yet)
+    if [ -n "$AUDIT_GPU_SECONDARY" ]; then
+        if echo "$AUDIT_GPU_SECONDARY" | grep -qE "Device [0-9a-f]+" && ! echo "$AUDIT_GPU_SECONDARY" | grep -qiE "Radeon|RX|Intel"; then
+            AUDIT_GPU_SECONDARY="AMD iGPU (${AUDIT_GPU_SECONDARY_DRIVER:-amdgpu})"
         fi
     fi
 
-    # GPU switching mode (PRIME)
+    # GPU switching mode (PRIME) — only relevant for hybrid configs
     AUDIT_GPU_PRIME_MODE=""
     if command -v prime-select &>/dev/null; then
         AUDIT_GPU_PRIME_MODE=$(prime-select query 2>/dev/null)
     fi
 
     export AUDIT_GPU_MODEL AUDIT_GPU_VRAM AUDIT_GPU_DRIVER AUDIT_GPU_CUDA
-    export AUDIT_GPU_ARCH AUDIT_GPU_SECONDARY AUDIT_GPU_TEMP AUDIT_GPU_DRIVER_TYPE
+    export AUDIT_GPU_ARCH AUDIT_GPU_SECONDARY AUDIT_GPU_SECONDARY_DRIVER
+    export AUDIT_GPU_TEMP AUDIT_GPU_DRIVER_TYPE AUDIT_GPU_CONFIG
     export AUDIT_GPU_PRIME_MODE
 }
 
@@ -139,12 +183,12 @@ detect_memory() {
     # Used RAM
     AUDIT_RAM_USED=$(free -h 2>/dev/null | awk '/Mem:/ {print $3}')
 
-    # RAM type (requires dmidecode - may need sudo)
-    AUDIT_RAM_TYPE=$(sudo dmidecode -t memory 2>/dev/null | grep "Type:" | grep -v "Error\|Unknown" | head -1 | awk '{print $2}')
+    # RAM type (requires dmidecode - use sudo -n to avoid password prompts)
+    AUDIT_RAM_TYPE=$(sudo -n dmidecode -t memory 2>/dev/null | grep "Type:" | grep -v "Error\|Unknown" | head -1 | awk '{print $2}')
     [ -z "$AUDIT_RAM_TYPE" ] && AUDIT_RAM_TYPE="Unknown"
 
     # RAM speed
-    AUDIT_RAM_SPEED=$(sudo dmidecode -t memory 2>/dev/null | grep "Speed:" | grep -v "Unknown" | head -1 | awk '{print $2 " " $3}')
+    AUDIT_RAM_SPEED=$(sudo -n dmidecode -t memory 2>/dev/null | grep "Speed:" | grep -v "Unknown" | head -1 | awk '{print $2 " " $3}')
 
     # Swap
     AUDIT_SWAP_TOTAL=$(free -h 2>/dev/null | awk '/Swap:/ {print $2}')
@@ -254,8 +298,8 @@ detect_display() {
     AUDIT_DISPLAY_CONNECTION=""
     AUDIT_DISPLAY_MODEL=""
 
-    # Use xrandr for X11/Cinnamon
-    if command -v xrandr &>/dev/null; then
+    # Use xrandr for X11/Cinnamon (requires $DISPLAY)
+    if [ -n "$DISPLAY" ] && command -v xrandr &>/dev/null; then
         local output=$(xrandr --current 2>/dev/null)
 
         # Parse primary connected output

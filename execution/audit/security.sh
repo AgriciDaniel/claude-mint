@@ -17,20 +17,20 @@ check_firewall() {
     AUDIT_FIREWALL_RULES=""
 
     if command -v ufw &>/dev/null; then
-        local status=$(sudo ufw status 2>/dev/null | head -1)
+        local status=$(sudo -n ufw status 2>/dev/null | head -1)
         if echo "$status" | grep -qi "active"; then
             AUDIT_FIREWALL_STATUS="UFW (active)"
             ((AUDIT_SECURITY_SCORE += 10))
 
             # Count rules
-            local rule_count=$(sudo ufw status 2>/dev/null | grep -cE "^[0-9]+|ALLOW|DENY" || echo "0")
+            local rule_count=$(sudo -n ufw status 2>/dev/null | grep -cE "^[0-9]+|ALLOW|DENY" || echo "0")
             AUDIT_FIREWALL_RULES="$rule_count rules"
         else
             AUDIT_FIREWALL_STATUS="UFW (inactive)"
         fi
     else
         # Check iptables as fallback
-        if sudo iptables -L -n 2>/dev/null | grep -qE "ACCEPT|DROP|REJECT"; then
+        if sudo -n iptables -L -n 2>/dev/null | grep -qE "ACCEPT|DROP|REJECT"; then
             AUDIT_FIREWALL_STATUS="iptables (configured)"
             ((AUDIT_SECURITY_SCORE += 5))
         else
@@ -129,7 +129,7 @@ check_mac() {
 
         # Count enforced profiles
         if command -v aa-status &>/dev/null; then
-            local enforced=$(sudo aa-status 2>/dev/null | grep "profiles are in enforce mode" | awk '{print $1}')
+            local enforced=$(sudo -n aa-status 2>/dev/null | grep "profiles are in enforce mode" | awk '{print $1}')
             AUDIT_MAC_PROFILES="$enforced profiles enforced"
         fi
     # Check SELinux (fallback)
