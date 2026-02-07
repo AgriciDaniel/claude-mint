@@ -181,16 +181,26 @@ powerprofilesctl set power-saver     # Power saving
 - Driver information
 - Recommendations based on current state
 
-## Edge Cases
+## Intel GPU Commands
 
-- **No NVIDIA GPU**: Check for AMD GPU with `glxinfo`
-- **Driver not loaded**: Check dmesg, may need reinstall
-- **After kernel update**: DKMS should rebuild automatically
-- **Hybrid graphics**: Use prime-select for GPU switching
+If Intel integrated GPU (i915 driver):
+```bash
+# Check driver
+lsmod | grep i915
+
+# GPU info
+glxinfo | grep "OpenGL renderer"
+
+# Frequency info (requires root)
+sudo -n cat /sys/kernel/debug/dri/0/i915_frequency_info 2>/dev/null || cat /sys/class/drm/card0/gt_cur_freq_mhz 2>/dev/null
+
+# Temperature
+sensors | grep -A5 i915 2>/dev/null
+```
 
 ## AMD GPU Commands
 
-If AMD discrete/integrated GPU:
+If AMD discrete/integrated GPU (amdgpu driver):
 ```bash
 # Check driver
 lsmod | grep amdgpu
@@ -198,9 +208,24 @@ lsmod | grep amdgpu
 # GPU info
 glxinfo | grep "OpenGL renderer"
 
-# Temperature (if supported)
-sensors | grep -A5 amdgpu
+# GPU utilization
+cat /sys/class/drm/card0/device/gpu_busy_percent 2>/dev/null
+
+# Temperature
+sensors | grep -A5 amdgpu 2>/dev/null
+
+# Monitor (if radeontop installed)
+radeontop
 ```
+
+## Edge Cases
+
+- **No NVIDIA GPU**: Use `glxinfo | grep "OpenGL renderer"` and `lspci | grep -iE "VGA|3D"` to identify GPU vendor
+- **Intel-only GPU**: All GPU management via kernel (i915) — no proprietary driver needed
+- **AMD-only GPU**: Uses open-source amdgpu driver — no proprietary driver needed
+- **Driver not loaded**: Check dmesg, may need reinstall
+- **After kernel update**: DKMS should rebuild automatically (NVIDIA only)
+- **Hybrid graphics**: Use prime-select for GPU switching
 
 ## Safety
 

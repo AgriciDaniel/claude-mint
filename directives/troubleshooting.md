@@ -254,12 +254,16 @@ sudo fwupdmgr update
 
 **Full boot repair from live USB:**
 ```bash
-# 1. Mount system (adjust device paths — verify with lsblk -f)
-sudo mount /dev/nvme0n1pX /mnt
-sudo mount /dev/nvme0n1p1 /mnt/boot/efi  # UEFI systems
+# 0. REQUIRED FIRST: Identify your actual partition paths
+lsblk -f
+# The paths below are EXAMPLES — replace with your actual devices
 
-# 2. If LUKS encrypted:
-sudo cryptsetup luksOpen /dev/nvme0n1pX cryptdata
+# 1. Mount system (replace /dev/sdXN with your root partition from lsblk)
+sudo mount /dev/sdXN /mnt
+sudo mount /dev/sdX1 /mnt/boot/efi  # UEFI systems
+
+# 2. If LUKS encrypted (replace /dev/sdXN with your LUKS partition):
+sudo cryptsetup luksOpen /dev/sdXN cryptdata
 sudo mount /dev/mapper/cryptdata /mnt
 
 # 3. Chroot

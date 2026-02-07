@@ -98,7 +98,7 @@ When invoked without arguments (`/mint`):
    - OS: Mint version, Cinnamon version, kernel, session type
    - CPU: model, cores, temperature (via `sensors`)
    - RAM: total, used (`free -h`)
-   - GPU: model, driver, PRIME mode, VRAM, temperature (`nvidia-smi`)
+   - GPU: model, driver, PRIME mode, VRAM, temperature (via `nvidia-smi` if NVIDIA, `sensors` if AMD/Intel)
    - Disk: usage, model, encryption status
    - Network: interface, IP, SSID
    - Security: score, firewall, AppArmor, Secure Boot, auto-updates
@@ -263,15 +263,21 @@ sudo apt autoremove                  # Clean orphans
 flatpak update                       # Update Flatpak apps
 ```
 
-### GPU (NVIDIA)
+### GPU
 ```bash
+# Detect GPU vendor first
+lspci | grep -iE "VGA|3D|Display"
+# NVIDIA (if nvidia-smi available)
 nvidia-smi                           # GPU status
 nvidia-smi -q | grep -i temp         # Temperature
-watch -n 1 nvidia-smi                # Monitor
+# AMD (amdgpu driver)
+sensors | grep -A5 amdgpu            # Temperature
+cat /sys/class/drm/card0/device/gpu_busy_percent  # Utilization
+# Intel (i915 driver)
+cat /sys/class/drm/card0/gt_cur_freq_mhz  # Frequency
+# Hybrid GPU switching (if prime-select available)
 prime-select query                   # Current GPU mode
-sudo prime-select nvidia             # Switch to NVIDIA
 sudo prime-select on-demand          # NVIDIA on-demand (PRIME)
-sudo prime-select intel              # Intel/AMD iGPU only
 ```
 
 ### Audio (PipeWire/PulseAudio)
@@ -312,11 +318,12 @@ sudo apt full-upgrade
 
 ### LUKS Encryption
 ```bash
-# Find your LUKS partition first — adjust device path as needed
-lsblk -f | grep crypto_LUKS
-sudo cryptsetup luksDump /dev/nvme0n1p3  # View LUKS info
+# Find your LUKS partition first
+LUKS_DEV=$(lsblk -f -o PATH,FSTYPE | grep crypto_LUKS | awk '{print $1}' | head -1)
+echo "LUKS device: $LUKS_DEV"
+sudo cryptsetup luksDump "$LUKS_DEV"  # View LUKS info
 # CRITICAL: Backup header to external drive
-sudo cryptsetup luksHeaderBackup /dev/nvme0n1p3 --header-backup-file ~/luks-backup.img
+sudo cryptsetup luksHeaderBackup "$LUKS_DEV" --header-backup-file ~/luks-backup.img
 ```
 
 ---

@@ -31,8 +31,9 @@ powerprofilesctl get
 # Memory pressure
 cat /proc/meminfo | grep -E "MemAvailable|MemTotal|SwapTotal"
 
-# I/O scheduler
-cat /sys/block/nvme0n1/queue/scheduler
+# I/O scheduler (detect root device dynamically)
+ROOT_DEV=$(lsblk -no PKNAME "$(findmnt -no SOURCE /)" 2>/dev/null | head -1)
+cat /sys/block/${ROOT_DEV:-nvme0n1}/queue/scheduler
 ```
 
 ### 2. Display Performance Status
@@ -101,10 +102,12 @@ System Settings > Effects > disable individual animations
 
 ### 6. I/O Scheduler Optimization
 
-**For NVMe drives (recommended: none or mq-deadline):**
+**For NVMe/SSD drives (recommended: none or mq-deadline):**
 ```bash
-cat /sys/block/nvme0n1/queue/scheduler
-echo "mq-deadline" | sudo tee /sys/block/nvme0n1/queue/scheduler
+# Detect root block device
+ROOT_DEV=$(lsblk -no PKNAME "$(findmnt -no SOURCE /)" 2>/dev/null | head -1)
+cat /sys/block/$ROOT_DEV/queue/scheduler
+echo "mq-deadline" | sudo tee /sys/block/$ROOT_DEV/queue/scheduler
 ```
 
 **Persistent setting:**
