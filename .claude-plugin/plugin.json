@@ -1,0 +1,8 @@
+{
+  "name": "mint",
+  "version": "1.0.0",
+  "description": "Intelligent Linux system assistant for Cinnamon-based desktops. Directive-based workflows for security hardening, system updates, GPU management, desktop customization, performance tuning, and troubleshooting.",
+  "author": "AgriciDaniel",
+  "license": "MIT",
+  "homepage": "https://github.com/AgriciDaniel/claude-mint"
+}
